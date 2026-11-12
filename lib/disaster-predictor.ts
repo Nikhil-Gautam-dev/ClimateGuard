@@ -5,10 +5,19 @@
 
 import Groq from "groq-sdk";
 
-const groq = new Groq({
-  apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY,
-  dangerouslyAllowBrowser: true,
-});
+function getGroqClient(): Groq | null {
+  const apiKey = process.env.NEXT_PUBLIC_GROQ_API_KEY;
+  if (!apiKey) return null;
+  try {
+    return new Groq({
+      apiKey,
+      dangerouslyAllowBrowser: true,
+    });
+  } catch (error) {
+    console.warn("Failed to initialize Groq client:", error);
+    return null;
+  }
+}
 
 export interface DisasterPrediction {
   id: string;
@@ -279,6 +288,11 @@ async function generateAIPredictions(
   seismicData: any
 ): Promise<DisasterPrediction[]> {
   try {
+    const groq = getGroqClient();
+    if (!groq) {
+      return [];
+    }
+
     const prompt = `You are a disaster prediction AI analyzing climate and geological data to forecast potential disasters in the next 48 hours.
 
 Location: ${location.name} (${location.lat}, ${location.lon})

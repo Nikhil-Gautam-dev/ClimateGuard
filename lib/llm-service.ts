@@ -1,10 +1,18 @@
 import Groq from "groq-sdk";
 
-// Initialize Groq client with API key from environment
-const groq = new Groq({
-  apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY,
-  dangerouslyAllowBrowser: true, // Required for client-side usage
-});
+function getGroqClient(): Groq | null {
+  const apiKey = process.env.NEXT_PUBLIC_GROQ_API_KEY;
+  if (!apiKey) return null;
+  try {
+    return new Groq({
+      apiKey,
+      dangerouslyAllowBrowser: true, // Required for client-side usage
+    });
+  } catch (error) {
+    console.warn("Failed to initialize Groq client:", error);
+    return null;
+  }
+}
 
 export interface ClimateContext {
   location: {
@@ -91,6 +99,11 @@ export async function getClimateResponse(
         content: question,
       },
     ];
+
+    const groq = getGroqClient();
+    if (!groq) {
+      return getFallbackResponse(question, context);
+    }
 
     // Call Groq API with fast model for voice interaction
     const completion = await groq.chat.completions.create({
@@ -264,6 +277,12 @@ export async function* streamClimateResponse(
         content: question,
       },
     ];
+
+    const groq = getGroqClient();
+    if (!groq) {
+      yield getFallbackResponse(question, context);
+      return;
+    }
 
     const stream = await groq.chat.completions.create({
       messages: messages as any,

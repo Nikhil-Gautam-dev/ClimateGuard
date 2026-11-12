@@ -5,10 +5,19 @@
 
 import Groq from "groq-sdk";
 
-const groq = new Groq({
-  apiKey: process.env.NEXT_PUBLIC_GROQ_API_KEY,
-  dangerouslyAllowBrowser: true,
-});
+function getGroqClient(): Groq | null {
+  const apiKey = process.env.NEXT_PUBLIC_GROQ_API_KEY;
+  if (!apiKey) return null;
+  try {
+    return new Groq({
+      apiKey,
+      dangerouslyAllowBrowser: true,
+    });
+  } catch (error) {
+    console.warn("Failed to initialize Groq client:", error);
+    return null;
+  }
+}
 
 // ============================================================================
 // Types & Interfaces
@@ -286,6 +295,11 @@ Return ONLY valid JSON array of actions, no markdown formatting:
 ]`;
 
   try {
+    const groq = getGroqClient();
+    if (!groq) {
+      return getTemplateActions(profile, risks);
+    }
+
     const completion = await groq.chat.completions.create({
       model: "llama-3.3-70b-versatile",
       messages: [

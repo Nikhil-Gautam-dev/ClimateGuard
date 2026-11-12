@@ -155,16 +155,25 @@ export function GlobalHeatmap({ className, height = 500 }: GlobalHeatmapProps) {
   }
 
   const getColor = (severity: string, riskType: string) => {
-    const baseColors = {
-      flood: { High: "#1e40af", Medium: "#3b82f6", Low: "#93c5fd" },
-      drought: { High: "#ea580c", Medium: "#f97316", Low: "#fed7aa" },
-      heatwave: { High: "#dc2626", Medium: "#ef4444", Low: "#fca5a5" },
-      storm: { High: "#7c3aed", Medium: "#8b5cf6", Low: "#c4b5fd" },
-      default: { High: "#6b7280", Medium: "#9ca3af", Low: "#d1d5db" },
+    const sev = severity?.toLowerCase()
+    const risk = (riskType || "").toLowerCase()
+
+    if (sev === "critical") return "#ef4444" // bright red
+    if (sev === "high") {
+      if (risk.includes("heat")) return "#dc2626"
+      if (risk.includes("flood")) return "#2563eb"
+      if (risk.includes("drought")) return "#ea580c"
+      if (risk.includes("storm")) return "#7c3aed"
+      return "#f87171"
     }
-    
-    return baseColors[riskType as keyof typeof baseColors]?.[severity as keyof typeof baseColors.flood] || 
-           baseColors.default[severity as keyof typeof baseColors.default]
+    if (sev === "medium") {
+      if (risk.includes("heat")) return "#f97316"
+      if (risk.includes("flood")) return "#38bdf8"
+      if (risk.includes("drought")) return "#fb923c"
+      if (risk.includes("storm")) return "#a855f7"
+      return "#fbbf24"
+    }
+    return "#34d399" // Low severity
   }
 
   const getSizeByRisk = (riskScore: number) => {
@@ -175,7 +184,11 @@ export function GlobalHeatmap({ className, height = 500 }: GlobalHeatmapProps) {
     ...data,
     features: selectedRisk === "all" 
       ? data.features 
-      : data.features.filter(f => f.properties.riskType?.toLowerCase() === selectedRisk.toLowerCase())
+      : data.features.filter(f => {
+          const r = (f.properties.riskType || "").toLowerCase()
+          if (selectedRisk === "heatwave") return r.includes("heat")
+          return r.includes(selectedRisk.toLowerCase())
+        })
   } : null
 
   if (loading) {
@@ -300,44 +313,60 @@ export function GlobalHeatmap({ className, height = 500 }: GlobalHeatmapProps) {
         </CardHeader>
 
         <CardContent>
-          <div style={{ height }}>
+          <div style={{ height }} className="rounded-lg overflow-hidden">
             <Plot
               data={[
                 {
-                  type: "scattermapbox",
+                  type: "scattergeo",
                   lat: mapData.map(d => d.lat),
                   lon: mapData.map(d => d.lon),
                   mode: "markers",
                   marker: {
                     size: mapData.map(d => getSizeByRisk(d.riskScore)),
                     color: mapData.map(d => getColor(d.severity, d.riskType)),
-                    opacity: 0.8,
-                    line: { color: "white", width: 2 },
+                    opacity: 0.9,
+                    line: { color: "white", width: 1.5 },
                   },
                   text: mapData.map(d => 
                     `<b>${d.city}, ${d.country}</b><br>` +
                     `Risk: ${d.riskType} (${d.severity})<br>` +
                     `Score: ${d.riskScore}/100<br>` +
-                    `Temp: ${d.temperature.toFixed(1)}°C<br>` +
-                    `Precipitation: ${d.precipitation.toFixed(1)}mm<br>` +
-                    `Humidity: ${d.humidity.toFixed(0)}%`
+                    `Temp: ${d.temperature != null ? d.temperature.toFixed(1) : "N/A"}°C<br>` +
+                    `Precipitation: ${d.precipitation != null ? d.precipitation.toFixed(1) : "N/A"}mm<br>` +
+                    `Humidity: ${d.humidity != null ? d.humidity.toFixed(0) : "N/A"}%`
                   ),
                   hovertemplate: "%{text}<extra></extra>",
                   showlegend: false,
                 }
               ]}
               layout={{
-                mapbox: {
-                  style: mapStyle === "terrain" ? "open-street-map" : 
-                         mapStyle === "satellite" ? "satellite-streets" : "streets",
-                  center: { lat: 20, lon: 0 },
-                  zoom: 1.5,
+                geo: {
+                  scope: "world",
+                  projection: {
+                    type: "natural earth",
+                  },
+                  showland: true,
+                  landcolor: "#182234",
+                  subunitcolor: "#334155",
+                  countrycolor: "#334155",
+                  countrywidth: 0.8,
+                  showcountries: true,
+                  showocean: true,
+                  oceancolor: "#0b1222",
+                  showlakes: true,
+                  lakecolor: "#0b1222",
+                  showcoastlines: true,
+                  coastlinecolor: "#475569",
+                  coastlinewidth: 1,
+                  bgcolor: "transparent",
+                  framewidth: 0,
                 },
                 margin: { t: 0, b: 0, l: 0, r: 0 },
                 paper_bgcolor: "transparent",
                 plot_bgcolor: "transparent",
-                font: { color: "#64748b", size: 12 },
+                font: { color: "#94a3b8", size: 12 },
                 hovermode: "closest",
+                dragmode: "pan",
               }}
               config={{
                 displayModeBar: false,
